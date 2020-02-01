@@ -102,7 +102,7 @@ class SleepTrackerFragment : Fragment() {
 
         sleepTrackerViewModel.nights.observe(this, Observer { newData ->
             if (newData != null) {
-                adapter.data = newData
+                adapter.submitList(newData)
             }
         })
 

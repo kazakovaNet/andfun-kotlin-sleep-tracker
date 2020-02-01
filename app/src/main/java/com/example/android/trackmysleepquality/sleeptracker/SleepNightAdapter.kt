@@ -21,24 +21,18 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.android.trackmysleepquality.R
 import com.example.android.trackmysleepquality.convertDurationToFormatted
 import com.example.android.trackmysleepquality.convertNumericQualityToString
 import com.example.android.trackmysleepquality.database.SleepNight
 
-class SleepNightAdapter : RecyclerView.Adapter<SleepNightAdapter.ViewHolder>() {
-
-    var data = listOf<SleepNight>()
-        set(value) {
-            field = value
-            notifyDataSetChanged()
-        }
-
-    override fun getItemCount() = data.size
+class SleepNightAdapter : ListAdapter<SleepNight, SleepNightAdapter.ViewHolder>(SleepNightDiffCallback()) {
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val item = data[position]
+        val item = getItem(position)
         holder.bind(item)
     }
 
@@ -75,4 +69,61 @@ class SleepNightAdapter : RecyclerView.Adapter<SleepNightAdapter.ViewHolder>() {
             }
         }
     }
+}
+
+class SleepNightDiffCallback : DiffUtil.ItemCallback<SleepNight>() {
+    /**
+     * Called to check whether two objects represent the same item.
+     *
+     *
+     * For example, if your items have unique ids, this method should check their id equality.
+     *
+     *
+     * Note: `null` items in the list are assumed to be the same as another `null`
+     * item and are assumed to not be the same as a non-`null` item. This callback will
+     * not be invoked for either of those cases.
+     *
+     * @param oldItem The item in the old list.
+     * @param newItem The item in the new list.
+     * @return True if the two items represent the same object or false if they are different.
+     *
+     * @see Callback.areItemsTheSame
+     */
+    override fun areItemsTheSame(oldItem: SleepNight, newItem: SleepNight): Boolean {
+        return oldItem.nightId == newItem.nightId
+    }
+
+    /**
+     * Called to check whether two items have the same data.
+     *
+     *
+     * This information is used to detect if the contents of an item have changed.
+     *
+     *
+     * This method to check equality instead of [Object.equals] so that you can
+     * change its behavior depending on your UI.
+     *
+     *
+     * For example, if you are using DiffUtil with a
+     * [RecyclerView.Adapter], you should
+     * return whether the items' visual representations are the same.
+     *
+     *
+     * This method is called only if [.areItemsTheSame] returns `true` for
+     * these items.
+     *
+     *
+     * Note: Two `null` items are assumed to represent the same contents. This callback
+     * will not be invoked for this case.
+     *
+     * @param oldItem The item in the old list.
+     * @param newItem The item in the new list.
+     * @return True if the contents of the items are the same or false if they are different.
+     *
+     * @see Callback.areContentsTheSame
+     */
+    override fun areContentsTheSame(oldItem: SleepNight, newItem: SleepNight): Boolean {
+        return oldItem == newItem
+    }
+
 }
