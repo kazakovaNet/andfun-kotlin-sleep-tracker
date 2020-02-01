@@ -38,7 +38,6 @@ import com.google.android.material.snackbar.Snackbar
  */
 class SleepTrackerFragment : Fragment() {
 
-    private val adapter = SleepNightAdapter()
     /**
      * Called when the Fragment is ready to display content to the screen.
      *
@@ -68,7 +67,19 @@ class SleepTrackerFragment : Fragment() {
 
         binding.setLifecycleOwner(this)
 
+        val adapter = SleepNightAdapter(SleepNightClickListener { nightId ->
+            sleepTrackerViewModel.onSleepNightClicked(nightId)
+        })
         binding.sleepList.adapter = adapter
+
+        sleepTrackerViewModel.navigateToSleepDataQuality.observe(this, Observer { night ->
+            night?.let {
+                this.findNavController().navigate(
+                        SleepTrackerFragmentDirections
+                                .actionSleepTrackerFragmentToSleepDetailFragment(night))
+                sleepTrackerViewModel.onSleepDataQualityNavigated()
+            }
+        })
 
         // Add an Observer on the state variable for showing a Snackbar message
         // when the CLEAR button is pressed.
