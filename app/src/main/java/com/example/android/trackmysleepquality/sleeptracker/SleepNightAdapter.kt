@@ -16,22 +16,61 @@
 
 package com.example.android.trackmysleepquality.sleeptracker
 
+import android.annotation.SuppressLint
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.example.android.trackmysleepquality.R
 import com.example.android.trackmysleepquality.database.SleepNight
 import com.example.android.trackmysleepquality.databinding.ListItemSleepNightBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class SleepNightAdapter(val clickListener: SleepNightClickListener) : ListAdapter<SleepNight, SleepNightAdapter.ViewHolder>(SleepNightDiffCallback()) {
+private const val ITEM_VIEW_TYPE_HEADER = 0
+private const val ITEM_VIEW_TYPE_ITEM = 1
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(getItem(position), clickListener)
+class SleepNightAdapter(val clickListener: SleepNightClickListener) : ListAdapter<DataItem, RecyclerView.ViewHolder>(SleepNightDiffCallback()) {
+
+    private val adapterScope = CoroutineScope(Dispatchers.Default)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return when (viewType) {
+            ITEM_VIEW_TYPE_HEADER -> TextViewHolder.from(parent)
+            ITEM_VIEW_TYPE_ITEM -> ViewHolder.from(parent)
+            else -> throw ClassCastException("Unknown viewType $viewType")
+        }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        return ViewHolder.from(parent)
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when (holder) {
+            is ViewHolder -> holder.bind(
+                    (getItem(position) as DataItem.SleepNightItem).sleepNight,
+                    clickListener)
+        }
+    }
+
+    fun addHeaderAndSubmitList(list: List<SleepNight>?) {
+        adapterScope.launch {
+            val items = when (list) {
+                null -> listOf(DataItem.Header)
+                else -> listOf(DataItem.Header) + list.map { DataItem.SleepNightItem(it) }
+            }
+            withContext(Dispatchers.Main) {
+                submitList(items)
+            }
+        }
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        return when (getItem(position)) {
+            is DataItem.Header -> ITEM_VIEW_TYPE_HEADER
+            is DataItem.SleepNightItem -> ITEM_VIEW_TYPE_ITEM
+        }
     }
 
     class ViewHolder private constructor(val binding: ListItemSleepNightBinding) : RecyclerView.ViewHolder(binding.root) {
@@ -50,65 +89,47 @@ class SleepNightAdapter(val clickListener: SleepNightClickListener) : ListAdapte
             }
         }
     }
+
+    class TextViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        companion object {
+            fun from(parent: ViewGroup): TextViewHolder {
+                val layoutInflater = LayoutInflater.from(parent.context)
+                val view = layoutInflater.inflate(R.layout.header, parent, false)
+                return TextViewHolder(view)
+            }
+        }
+    }
 }
 
-class SleepNightDiffCallback : DiffUtil.ItemCallback<SleepNight>() {
-    /**
-     * Called to check whether two objects represent the same item.
-     *
-     *
-     * For example, if your items have unique ids, this method should check their id equality.
-     *
-     *
-     * Note: `null` items in the list are assumed to be the same as another `null`
-     * item and are assumed to not be the same as a non-`null` item. This callback will
-     * not be invoked for either of those cases.
-     *
-     * @param oldItem The item in the old list.
-     * @param newItem The item in the new list.
-     * @return True if the two items represent the same object or false if they are different.
-     *
-     * @see Callback.areItemsTheSame
-     */
-    override fun areItemsTheSame(oldItem: SleepNight, newItem: SleepNight): Boolean {
-        return oldItem.nightId == newItem.nightId
+/**
+ * Callback for calculating the diff between two non-null items in a list.
+ *
+ * Used by ListAdapter to calculate the minumum number of changes between and old list and a new
+ * list that's been passed to `submitList`.
+ */
+class SleepNightDiffCallback : DiffUtil.ItemCallback<DataItem>() {
+    override fun areItemsTheSame(oldItem: DataItem, newItem: DataItem): Boolean {
+        return oldItem.id == newItem.id
     }
 
-    /**
-     * Called to check whether two items have the same data.
-     *
-     *
-     * This information is used to detect if the contents of an item have changed.
-     *
-     *
-     * This method to check equality instead of [Object.equals] so that you can
-     * change its behavior depending on your UI.
-     *
-     *
-     * For example, if you are using DiffUtil with a
-     * [RecyclerView.Adapter], you should
-     * return whether the items' visual representations are the same.
-     *
-     *
-     * This method is called only if [.areItemsTheSame] returns `true` for
-     * these items.
-     *
-     *
-     * Note: Two `null` items are assumed to represent the same contents. This callback
-     * will not be invoked for this case.
-     *
-     * @param oldItem The item in the old list.
-     * @param newItem The item in the new list.
-     * @return True if the contents of the items are the same or false if they are different.
-     *
-     * @see Callback.areContentsTheSame
-     */
-    override fun areContentsTheSame(oldItem: SleepNight, newItem: SleepNight): Boolean {
+    @SuppressLint("DiffUtilEquals")
+    override fun areContentsTheSame(oldItem: DataItem, newItem: DataItem): Boolean {
         return oldItem == newItem
     }
-
 }
 
 class SleepNightClickListener(val clickListener: (sleepId: Long) -> Unit) {
     fun onClick(night: SleepNight) = clickListener(night.nightId)
+}
+
+sealed class DataItem {
+    data class SleepNightItem(val sleepNight: SleepNight) : DataItem() {
+        override val id: Long = sleepNight.nightId
+    }
+
+    object Header : DataItem() {
+        override val id: Long = Long.MIN_VALUE
+    }
+
+    abstract val id: Long
 }
